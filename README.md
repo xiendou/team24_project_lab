@@ -1,6 +1,14 @@
 # **Effect of weather and climate change on commodity prices.**
 
-This repo is the data stage: it collects raw data from public sources and builds one monthly table for cleaning and analysis.
+Team 24 data science project on **how weather and climate change affect commodity prices**. 
+
+## Project stages
+
+| Stage | Section | Status |
+|---|---|---|
+| 1. Data collection | [1. Data collection](#1-data-collection) | Done |
+| 2. Cleaning | [2. Cleaning](#2-cleaning) | To do |
+| 3. Analysis | [3. Analysis](#3-analysis) | To do |
 
 ## Scope
 
@@ -10,7 +18,11 @@ This repo is the data stage: it collects raw data from public sources and builds
 - **Weather:** one point per key producing region (crop commodities) or demand centre (natural gas)
 - **Climate:** ENSO (ONI and RONI) and the global temperature anomaly (GISTEMP)
 
-## Datasets
+## 1. Data collection
+
+Raw data from five public sources, plus a pre-processed monthly table (`data/pre_processed/panel_monthly.csv`) that the cleaning stage starts from.
+
+### Datasets
 
 Five public datasets, all free.
 
@@ -30,7 +42,7 @@ Five public datasets, all free.
 
 **Suggested citations:** World Bank (2026), *Commodity Markets Outlook*, Pink Sheet data. Hersbach et al. (2020), "The ERA5 global reanalysis", *QJRMS* 146:1999–2049, accessed via Open-Meteo (Zippenfeld, 2023). NOAA CPC ONI and RONI. GISTEMP Team (2026), GISS Surface Temperature Analysis v4, NASA GISS.
 
-## Data folders
+### Data folders
 
 ```
 data/
@@ -41,7 +53,7 @@ data/
 └── pre_processed/        reshaped to one monthly format, NOT cleaned (5 files)
 ```
 
-### Raw vs pre-processed
+#### Raw vs pre-processed
 
 `raw/` is the evidence: each file is exactly what the source served, in its own layout (Excel with title rows, daily rows, a text table, an HTML page). These files are never edited.
 
@@ -66,13 +78,13 @@ Weather aggregation rules (daily → monthly):
 | `dry_days` | count of days with precipitation < 1 mm |
 | `temp_anom_c` / `precip_anom_mm` | monthly value minus the 1991–2020 average for the same calendar month at that region |
 
-### `data/raw/prices/`
+#### `data/raw/prices/`
 
 | File | Contents |
 |---|---|
 | `CMO-Historical-Data-Monthly.xlsx` | World Bank Pink Sheet, update of 3 November 2026. We use the sheet **Monthly Prices**: rows are months from `1960M01` (format `YYYYMmm`), columns are 71 commodities. The first rows are a title block, then a row of series names and a row of units. The other sheets (*Monthly Indices*, *Description*, *Index Weights*, *Mismatch Details*) are not used. |
 
-### `data/raw/weather/`
+#### `data/raw/weather/`
 
 Ten files named `weather_daily_<region>.csv`, one per region in the [region table](#weather). All ten have the same layout: one row per day from 1990-01-01 to 2026-10-31 (13,453 rows).
 
@@ -82,7 +94,7 @@ Ten files named `weather_daily_<region>.csv`, one per region in the [region tabl
 | `temperature_2m_mean` / `_max` / `_min` | daily mean, maximum and minimum air temperature at 2 m (°C) |
 | `precipitation_sum` | daily total precipitation (mm) |
 
-### `data/raw/climate/`
+#### `data/raw/climate/`
 
 | File | Contents |
 |---|---|
@@ -90,7 +102,7 @@ Ten files named `weather_daily_<region>.csv`, one per region in the [region tabl
 | `roni_table.html` | Saved copy of the NOAA CPC RONI web page. The data is an HTML table with rows = years from 1950 and columns = the 12 seasons `DJF` … `NDJ`. Ends at AMJ 2026. |
 | `GLB.Ts+dSST.csv` | NASA GISTEMP v4 global land-ocean anomaly, from 1880. The first line is a title. After that, rows = years; columns = `Jan` … `Dec`, then annual (`J-D`, `D-N`) and seasonal (`DJF`, `MAM`, `JJA`, `SON`) means. `***` means not yet available. Only the 12 monthly columns are used. |
 
-### `data/pre_processed/`
+#### `data/pre_processed/`
 
 | File | Shape | Contents |
 |---|---|---|
@@ -100,9 +112,9 @@ Ten files named `weather_daily_<region>.csv`, one per region in the [region tabl
 | `climate_monthly.csv` | 442 rows × 4 cols | `month`, `oni`, `roni`, `gistemp_anom_c`. `roni` is empty for 2026-06 to 2026-10 and `oni` for 2026-10 (not yet published). |
 | `panel_monthly.csv` | 442 rows × 93 cols | **Main file, one row per month.** `month` + 9 prices + 3 climate indices + 80 weather columns (8 features × 10 regions, named `<feature>__<region>`, e.g. `temp_anom_c__us_kansas`). `temp_max_c` and `temp_min_c` are only in `weather_monthly.csv`. The only missing values are the 5 `roni` months and the 1 `oni` month above. |
 
-## Data dictionary
+### Data dictionary
 
-### Prices
+#### Prices
 Source: World Bank Commodity Price Data ("Pink Sheet"), monthly averages in nominal USD. See `prices_units.csv` for each series' unit.
 
 | Column | Pink Sheet series | Unit |
@@ -117,7 +129,7 @@ Source: World Bank Commodity Price Data ("Pink Sheet"), monthly averages in nomi
 | `natgas_europe` | Natural gas, Europe | $/mmbtu |
 | `crude_brent` | Crude oil, Brent | $/bbl |
 
-### Climate
+#### Climate
 
 | Column | Meaning | Source |
 |---|---|---|
@@ -125,7 +137,7 @@ Source: World Bank Commodity Price Data ("Pink Sheet"), monthly averages in nomi
 | `roni` | Relative ONI. NOAA's official ENSO index since February 2026. ≥ +0.5 means El Niño; ≤ −0.5 means La Niña. | NOAA CPC |
 | `gistemp_anom_c` | Global land-ocean temperature anomaly vs the 1951–1980 mean (°C) | NASA GISTEMP v4 |
 
-### Weather
+#### Weather
 Source: ERA5 / ERA5-Land reanalysis via the Open-Meteo archive API (CC BY 4.0). In the panel, each column is named `<feature>__<region>`.
 
 | Feature | Meaning |
@@ -150,6 +162,14 @@ Source: ERA5 / ERA5-Land reanalysis via the Open-Meteo archive API (CC BY 4.0). 
 | `ghana_kumasi` | 6.69, −1.62 | cocoa |
 | `us_chicago` | 41.88, −87.63 | natural gas demand |
 | `us_new_york` | 40.71, −74.01 | natural gas demand |
+
+## 2. Cleaning
+
+*To be added by the cleaning stage.*
+
+## 3. Analysis
+
+*To be added by the analysis stage.*
 
 ## Known limitations
 
