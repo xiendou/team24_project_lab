@@ -1,0 +1,10 @@
+commodity,unit
+maize,($/mt)
+wheat_us_hrw,($/mt)
+soybeans,($/mt)
+coffee_arabica,($/kg)
+cocoa,($/kg)
+sugar_world,($/kg)
+natgas_us,($/mmbtu)
+natgas_europe,($/mmbtu)
+crude_brent,($/bbl)
