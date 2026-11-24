@@ -6,9 +6,11 @@ Team 24 data science project on **how weather and climate change affect commodit
 
 | Stage | Section | Status |
 |---|---|---|
-| 1. Data collection | [1. Data collection](#1-data-collection) | Done |
+| 1. Data collection | [1. Data collection](#1-data-collection) | In progress |
 | 2. Cleaning | [2. Cleaning](#2-cleaning) | To do |
 | 3. Analysis | [3. Analysis](#3-analysis) | To do |
+
+Every choice that shapes the data or the results is recorded, with its reasons, in the **[decision log](docs/decision_doc.md)**.
 
 ## Scope
 
@@ -17,14 +19,15 @@ Team 24 data science project on **how weather and climate change affect commodit
 - **Commodities:** maize, US HRW wheat, soybeans, arabica coffee, cocoa, world sugar, US and European natural gas; Brent crude is a control variable
 - **Weather:** one point per key producing region (crop commodities) or demand centre (natural gas)
 - **Climate:** ENSO (ONI and RONI) and the global temperature anomaly (GISTEMP)
+- **Focus:** cocoa, with Côte d'Ivoire and Ghana as the producing regions. The other commodities and regions are kept for comparison.
 
 ## 1. Data collection
 
-Raw data from five public sources, plus a pre-processed monthly table (`data/pre_processed/panel_monthly.csv`) that the cleaning stage starts from.
+Raw data from eight public datasets, plus pre-processed tables that the cleaning stage starts from. Each table covers one thing; there is no joined panel.
 
 ### Datasets
 
-Five public datasets, all free.
+Eight public datasets, all free.
 
 | # | Dataset | Publisher | What we take from it | Native frequency | Access | Licence | Raw file(s) |
 |---|---|---|---|---|---|---|---|
@@ -33,14 +36,20 @@ Five public datasets, all free.
 | 3 | **Oceanic Niño Index (ONI), ERSSTv5** | NOAA Climate Prediction Center | 3-month running Niño 3.4 SST anomaly (°C) | Monthly (overlapping 3-month seasons) | `cpc.ncep.noaa.gov/data/indices/oni.ascii.txt` | US public domain | `data/raw/climate/oni.ascii.txt` |
 | 4 | **Relative Oceanic Niño Index (RONI)** | NOAA Climate Prediction Center | Niño 3.4 anomaly relative to the tropical-mean SST anomaly (°C). NOAA's official ENSO index since Feb 2026. | Monthly (overlapping 3-month seasons) | HTML table at the CPC RONI page | US public domain | `data/raw/climate/roni_table.html` |
 | 5 | **GISS Surface Temperature Analysis v4 (GISTEMP)**, global land-ocean means | NASA Goddard Institute for Space Studies | Global mean surface temperature anomaly vs 1951–1980 (°C) | Monthly | `data.giss.nasa.gov/gistemp/tabledata_v4/GLB.Ts+dSST.csv` | US public domain | `data/raw/climate/GLB.Ts+dSST.csv` |
+| 6 | **US price indices: CPI-U and PPI** | US Bureau of Labor Statistics (BLS) | CPI all items (`CUUR0000SA0`, the deflator), CPI candy and chewing gum (`CUUR0000SEFR02`), PPI chocolate and chocolate-type confectionery (`WPU02550301`) | Monthly | BLS public API v1 (`api.bls.gov/publicAPI/v1`) | US public domain | `data/raw/price_indices/bls_<start>_<end>.json` |
+| 7 | **Commitments of Traders (COT), Disaggregated, futures only**: ICE cocoa | US Commodity Futures Trading Commission (CFTC) | Open interest and long/short positions of managed money (funds), producers/merchants and swap dealers in cocoa futures | Weekly (Tuesday positions) | CFTC Public Reporting API, dataset `72hh-3qpy`, contract code `073732` | US public domain | `data/raw/positions/cot_cocoa_disaggregated_weekly.csv` |
+| 8 | **FAOSTAT Crops and livestock products (QCL)**: cocoa beans | UN Food and Agriculture Organization (FAO) | Production (t), area harvested (ha) and yield (kg/ha) of cocoa beans in Côte d'Ivoire and Ghana | Annual | FAOSTAT bulk download (the API needs a login) | CC BY 4.0 | `data/raw/production/faostat_cocoa_civ_ghana.csv` |
 
 **How each maps to the research question:**
 - **(1)** gives the outcome variables: prices of weather-exposed crops and of natural gas, a heating/cooling-demand commodity. Brent crude is the control for general energy and macro moves.
 - **(2)** gives local weather shocks in the main producing regions (crops) or demand centres (gas).
 - **(3) and (4)** give the dominant mode of interannual climate variability. El Niño and La Niña shift rainfall and temperature across the tropics and the Americas.
 - **(5)** gives the slow warming trend, the "climate change" signal.
+- **(6)** follows a cocoa shock down the chain: cocoa beans → chocolate makers' prices (PPI) → what shoppers pay for candy (CPI). CPI all items removes general inflation from every price.
+- **(7)** shows whether investors (managed money) bet on cocoa before or after weather events.
+- **(8)** is the step between weather and price: bad weather → smaller harvest → higher price.
 
-**Suggested citations:** World Bank (2026), *Commodity Markets Outlook*, Pink Sheet data. Hersbach et al. (2020), "The ERA5 global reanalysis", *QJRMS* 146:1999–2049, accessed via Open-Meteo (Zippenfeld, 2023). NOAA CPC ONI and RONI. GISTEMP Team (2026), GISS Surface Temperature Analysis v4, NASA GISS.
+**Suggested citations:** World Bank (2026), *Commodity Markets Outlook*, Pink Sheet data. Hersbach et al. (2020), "The ERA5 global reanalysis", *QJRMS* 146:1999–2049, accessed via Open-Meteo (Zippenfeld, 2023). NOAA CPC ONI and RONI. GISTEMP Team (2026), GISS Surface Temperature Analysis v4, NASA GISS. US BLS CPI and PPI. CFTC Commitments of Traders. FAO (2025), FAOSTAT Crops and livestock products.
 
 ### Data folders
 
@@ -49,22 +58,29 @@ data/
 ├── raw/                  untouched downloads, exactly as the source published them
 │   ├── prices/           World Bank Pink Sheet (1 file)
 │   ├── weather/          daily weather, one file per region (10 files)
-│   └── climate/          ONI, RONI, GISTEMP (3 files)
-└── pre_processed/        reshaped to one monthly format, NOT cleaned (5 files)
+│   ├── climate/          ONI, RONI, GISTEMP (3 files)
+│   ├── price_indices/    US CPI and PPI from BLS (4 files)
+│   ├── positions/        CFTC cocoa futures positions (1 file)
+│   └── production/       FAOSTAT cocoa production, Côte d'Ivoire and Ghana (1 file)
+└── pre_processed/        reshaped to one common format, NOT cleaned (7 files)
 ```
 
 #### Raw vs pre-processed
 
 `raw/` is the evidence: each file is exactly what the source served, in its own layout (Excel with title rows, daily rows, a text table, an HTML page). These files are never edited.
 
-`pre_processed/` holds the same information converted into one common shape. Every file is a CSV, keyed by `month` (the first day of the month, `YYYY-MM-01`), starting in January 1990, with short snake_case column names. The table below lists everything that was done between raw and pre-processed. Anything not listed was **not** done.
+`pre_processed/` holds the same information converted into one common shape. Every file is a CSV, keyed by `month` (the first day of the month, `YYYY-MM-01`), starting in January 1990, with short snake_case column names. The one exception is `cocoa_production_annual.csv`, keyed by `year` because FAO publishes yearly. Each file stays a separate table; nothing is joined. The table below lists everything that was done between raw and pre-processed. Anything not listed was **not** done.
 
 | | Done in pre-processing | Left for cleaning |
 |---|---|---|
 | **Prices** | Kept 9 of the 71 Pink Sheet series and renamed them. Converted `1990M01` to `1990-01-01`. Dropped title rows and data before 1990. Turned the Pink Sheet's missing markers (`..`, `…`) into empty cells. Moved units into a separate file. | Prices are **nominal** USD, not deflated, logged or differenced. Units differ between series ($/mt, $/kg, $/mmbtu, $/bbl). |
 | **Weather** | Aggregated daily values to monthly (rules below). Added degree days, heat-stress days, dry days and anomalies against 1991–2020. Stacked the 10 regions into one long table. | No outlier checks. One grid point stands in for each region. No crop-calendar or seasonal weighting. |
 | **Climate** | Mapped each 3-month ENSO season to its centre month (DJF→Jan, JFM→Feb, …, NDJ→Dec). Turned GISTEMP's year × month grid into one row per month. Dropped GISTEMP's annual and seasonal columns and its `***` missing markers. | The latest ENSO values are provisional; NOAA revises them for about two months. |
-| **Panel** | Joined everything into one row per month, with weather spread wide as `<feature>__<region>`. Cut off at the last month that has weather data. | **Missing values are left as empty cells (NaN).** Nothing is imputed. |
+| **Price indices** | Kept only the monthly values (dropped BLS's annual averages). Put the three series side by side, one row per month, 1990-01 to 2026-10. BLS's "not collected" marker (`-`) became an empty cell. | Indices, not prices in dollars, with different base periods. Not rebased or deflated. |
+| **Positions** | Averaged the weekly reports within each calendar month. Kept 8 of the 194 CFTC columns (open interest; long, short and spread positions by trader type). No new columns calculated. | The first and last months are partial (fewer weekly reports; see `n_reports`). |
+| **Production** | Kept cocoa beans for Côte d'Ivoire and Ghana from 1990. Put production, area harvested and yield side by side, one row per year, using FAO's values as published. Kept FAO's flag for each production value. | Annual only, so it does not line up with the monthly tables. Ghana 2022–2024 are flagged `X` (figures from an external organization, not official). |
+
+**In every table, missing values are left as empty cells (NaN).** Nothing is imputed.
 
 Weather aggregation rules (daily → monthly):
 
@@ -102,6 +118,24 @@ Ten files named `weather_daily_<region>.csv`, one per region in the [region tabl
 | `roni_table.html` | Saved copy of the NOAA CPC RONI web page. The data is an HTML table with rows = years from 1950 and columns = the 12 seasons `DJF` … `NDJ`. Ends at AMJ 2026. |
 | `GLB.Ts+dSST.csv` | NASA GISTEMP v4 global land-ocean anomaly, from 1880. The first line is a title. After that, rows = years; columns = `Jan` … `Dec`, then annual (`J-D`, `D-N`) and seasonal (`DJF`, `MAM`, `JJA`, `SON`) means. `***` means not yet available. Only the 12 monthly columns are used. |
 
+#### `data/raw/price_indices/`
+
+| File | Contents |
+|---|---|
+| `bls_1990_1999.json`, `bls_2000_2009.json`, `bls_2010_2019.json`, `bls_2020_2026.json` | Untouched BLS API responses, one per decade (the keyless API returns at most 10 years per request). Each holds the three series with one entry per month (`period` `M01`–`M12`) plus annual averages (`M13`), and footnotes such as "Preliminary". |
+
+#### `data/raw/positions/`
+
+| File | Contents |
+|---|---|
+| `cot_cocoa_disaggregated_weekly.csv` | CFTC Disaggregated Commitments of Traders, futures only, for cocoa on ICE Futures U.S. (called New York Board of Trade before Sep 2007). One row per weekly report, from 13 June 2006 to 17 November 2026 (1,067 rows), with all 194 CFTC columns. Positions are numbers of contracts (1 contract = 10 tonnes). |
+
+#### `data/raw/production/`
+
+| File | Contents |
+|---|---|
+| `faostat_cocoa_civ_ghana.csv` | FAOSTAT rows for cocoa beans (item 661) in Côte d'Ivoire (area 107) and Ghana (area 81), 1961–2024, all elements (384 rows). Columns as FAO publishes them: `Area`, `Item`, `Element` (Production, Area harvested, Yield), `Year`, `Unit`, `Value`, `Flag` (A = official, E = estimated, I = imputed, X = external organization), `Note`. |
+
 #### `data/pre_processed/`
 
 | File | Shape | Contents |
@@ -110,7 +144,9 @@ Ten files named `weather_daily_<region>.csv`, one per region in the [region tabl
 | `prices_units.csv` | 9 rows | `commodity`, `unit`: the unit of each price column, copied from the Pink Sheet. |
 | `weather_monthly.csv` | 4,420 rows (442 months × 10 regions) | **Long format.** `month`, `region`, `commodity` (what the region proxies), `lat`, `lon`, then `temp_mean_c`, `temp_max_c`, `temp_min_c`, `precip_mm`, `hdd`, `cdd`, `heat_days`, `dry_days`, `temp_anom_c`, `precip_anom_mm`. No missing values. |
 | `climate_monthly.csv` | 442 rows × 4 cols | `month`, `oni`, `roni`, `gistemp_anom_c`. `roni` is empty for 2026-06 to 2026-10 and `oni` for 2026-10 (not yet published). |
-| `panel_monthly.csv` | 442 rows × 93 cols | **Main file, one row per month.** `month` + 9 prices + 3 climate indices + 80 weather columns (8 features × 10 regions, named `<feature>__<region>`, e.g. `temp_anom_c__us_kansas`). `temp_max_c` and `temp_min_c` are only in `weather_monthly.csv`. The only missing values are the 5 `roni` months and the 1 `oni` month above. |
+| `price_indices_monthly.csv` | 442 rows × 4 cols | `month`, `cpi_all` (CPI all items, 1982–84 = 100), `cpi_candy` (CPI candy and chewing gum, Dec 1997 = 100), `ppi_chocolate` (PPI chocolate products, Jun 1983 = 100). `cpi_candy` starts in Dec 1997, when BLS created it. Both CPIs are empty for Oct 2025 (not collected during the US government shutdown). The latest 4 PPI months are preliminary. |
+| `cot_cocoa_monthly.csv` | 246 rows × 10 cols | `month` (2006-06 to 2026-11); `open_interest`; `mm_long`, `mm_short`, `mm_spread` (managed money, i.e. hedge funds); `prod_long`, `prod_short` (producers, merchants, processors); `swap_long`, `swap_short` (swap dealers); `n_reports` (weekly reports averaged). All positions in contracts. |
+| `cocoa_production_annual.csv` | 35 rows × 9 cols | `year` (1990–2024); for each of `civ_` and `ghana_`: `production_t` (tonnes), `area_harvested_ha` (hectares), `yield_kg_ha` (kg per hectare); `civ_production_t_flag`, `ghana_production_t_flag` (FAO flag, see above). No missing values. |
 
 ### Data dictionary
 
@@ -138,7 +174,7 @@ Source: World Bank Commodity Price Data ("Pink Sheet"), monthly averages in nomi
 | `gistemp_anom_c` | Global land-ocean temperature anomaly vs the 1951–1980 mean (°C) | NASA GISTEMP v4 |
 
 #### Weather
-Source: ERA5 / ERA5-Land reanalysis via the Open-Meteo archive API (CC BY 4.0). In the panel, each column is named `<feature>__<region>`.
+Source: ERA5 / ERA5-Land reanalysis via the Open-Meteo archive API (CC BY 4.0).
 
 | Feature | Meaning |
 |---|---|
@@ -187,3 +223,6 @@ Source: ERA5 / ERA5-Land reanalysis via the Open-Meteo archive API (CC BY 4.0). 
 - NOAA CPC ONI: https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/oni/v6/
 - NOAA CPC RONI: https://www.cpc.ncep.noaa.gov/products/analysis_monitoring/enso/roni/v5/
 - NASA GISTEMP v4: https://data.giss.nasa.gov/gistemp/
+- BLS CPI: https://www.bls.gov/cpi/ and PPI: https://www.bls.gov/ppi/
+- CFTC Commitments of Traders: https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm
+- FAOSTAT Crops and livestock products: https://www.fao.org/faostat/en/#data/QCL
